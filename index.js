@@ -49,6 +49,14 @@ async function run() {
             console.log(result);
         });
 
+        // ADD FOOD ITEM FORM USER
+        app.post("/foods", async(req, res) => {
+            const newFood = req.body;
+            const result = await foodCollection.insertOne(newFood)
+            res.send(result);
+            console.log("added new food", result);
+        })
+
         // ADD ORDER FROM USER
         app.post("/orders", async(req, res) => {
             const order = req.body;
