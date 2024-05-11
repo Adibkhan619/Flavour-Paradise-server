@@ -30,6 +30,9 @@ async function run() {
         const foodCollection = client
             .db("restaurant-management")
             .collection("foods");
+        const orderCollection = client
+            .db("restaurant-management")
+            .collection("orders");
 
         // ALL FOOD DATA
         app.get("/foods", async (req, res) => {
@@ -44,6 +47,19 @@ async function run() {
             const result = await foodCollection.findOne(query);
             res.send(result);
         });
+
+        // ADD ORDER FROM USER
+        app.post("/orders", async(req, res) => {
+            const order = req.body;
+            const result = await orderCollection.insertOne(order)
+            res.send(result);
+        })
+
+        // GET ORDER DATA
+        app.get("/orders", async(req, res) => {
+            const result = await orderCollection.find().toArray();
+            res.send(result);
+        })
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
