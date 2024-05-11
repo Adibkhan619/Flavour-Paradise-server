@@ -46,20 +46,30 @@ async function run() {
             const query = { _id: new ObjectId(id) };
             const result = await foodCollection.findOne(query);
             res.send(result);
+            console.log(result);
         });
 
         // ADD ORDER FROM USER
         app.post("/orders", async(req, res) => {
             const order = req.body;
             const result = await orderCollection.insertOne(order)
+            const updateOrder = {
+                $inc: { order_count: 1}
+            }
+            const orderQuery = { _id: new ObjectId(order.id)}
+            const updateOrderCount = await foodCollection.updateOne( orderQuery, updateOrder)
+            console.log(updateOrderCount);
             res.send(result);
         })
 
-        // GET ORDER DATA
+        // GET ALL ORDER DATA
         app.get("/orders", async(req, res) => {
             const result = await orderCollection.find().toArray();
             res.send(result);
         })
+
+        
+
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
