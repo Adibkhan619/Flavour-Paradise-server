@@ -58,9 +58,9 @@ async function run() {
         })
 
         // GET FOOD ITEM ADDED BY USER
-        app.get("/foods/:email", async(req, res) =>{
+        app.get("/food/:email", async(req, res) =>{
             const email = req.params.email
-            const query =  {email};
+            const query =  {email: email}; 
             const result = await foodCollection.find(query).toArray();
             res.send(result)
         })
@@ -69,12 +69,12 @@ async function run() {
         app.post("/orders", async(req, res) => {
             const order = req.body;
             const result = await orderCollection.insertOne(order)
-            // const updateOrder = {
-            //     $inc: { order_count: 1}
-            // }
-            // const orderQuery = { _id: new ObjectId(order.id)}
-            // const updateOrderCount = await foodCollection.updateOne( orderQuery, updateOrder)
-            // console.log(updateOrderCount);
+            const updateOrder = {
+                $inc: { order_count: 1}
+            }
+            const orderQuery = { _id: new ObjectId(order.id)}
+            const updateOrderCount = await foodCollection.updateOne( orderQuery, updateOrder)
+            console.log(updateOrderCount);
             res.send(result);
         })
 
@@ -83,9 +83,6 @@ async function run() {
             const result = await orderCollection.find().toArray();
             res.send(result);
         })
-
-        
-
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
