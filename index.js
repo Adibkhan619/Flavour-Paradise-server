@@ -73,6 +73,21 @@ async function run() {
             res.send(result)
           })
 
+        //   UPDATE FOOD ITEM ADDED BY USER
+        app.put('/foods/:id',  async (req, res) => {
+            const id = req.params.id
+            const foodData = req.body
+            const query = { _id: new ObjectId(id) }
+            const options = { upsert: true }
+            const updateDoc = {
+              $set: {
+                ...foodData,
+              },
+            }
+            const result = await foodCollection.updateOne(query, updateDoc, options)
+            res.send(result)
+          })
+
         // ADD ORDER FROM USER
         app.post("/orders", async(req, res) => {
             const order = req.body;
