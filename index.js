@@ -1,5 +1,7 @@
 const express = require("express");
 const cors = require("cors");
+const jwt = require("jsonwebtoken");
+const cookieParser = require('cookie-parser')
 require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const port = process.env.PORT || 5000;
@@ -33,12 +35,50 @@ async function run() {
         const orderCollection = client
             .db("restaurant-management")
             .collection("orders");
+        const photoCollection = client
+            .db("restaurant-management")
+            .collection("gallery");
+
+        // JWT GENERATE
+        app.post("/jwt", async (req, res) => {
+            const user = req.body;
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+                expiresIn: "365d",
+            });
+            res
+            .cookie('token', token, {
+              httpOnly: true,
+              secure: process.env.NODE_ENV === 'production',
+              sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+            })
+            .send({ success: true })
+
+        });
 
         // ALL FOOD DATA
         app.get("/foods", async (req, res) => {
-            const result = await foodCollection.find().toArray();
+            const search = req.query.search;
+            let query = {
+                food_name: { $regex: search, $options: "i" },
+            };
+
+            const result = await foodCollection.find(query).toArray();
             res.send(result);
+
+            // const result = await foodCollection.find().toArray();
+            // res.send(result);
         });
+
+        // GET FOOD BY SEARCH
+        // app.get("/all-foods", async (req, res) => {
+        //     const search = req.query.search
+        //     let query = {
+        //         food_name: { $regex: search, $options: 'i' },
+        //       }
+
+        //     const result = await foodCollection.find(query).toArray();
+        //     res.send(result);
+        // });
 
         // GET FOOD BY ID
         app.get("/foods/:id", async (req, res) => {
@@ -50,78 +90,98 @@ async function run() {
         });
 
         // ADD FOOD ITEM FORM USER
-        app.post("/foods", async(req, res) => {
+        app.post("/foods", async (req, res) => {
             const newFood = req.body;
-            const result = await foodCollection.insertOne(newFood)
+            const result = await foodCollection.insertOne(newFood);
             res.send(result);
             console.log("added new food", result);
-        })
+        });
 
         // GET FOOD ITEM ADDED BY USER
-        app.get("/food/:email", async(req, res) =>{
-            const email = req.params.email
-            const query =  {email: email}; 
+        app.get("/food/:email", async (req, res) => {
+            const email = req.params.email;
+            const query = { email: email };
             const result = await foodCollection.find(query).toArray();
-            res.send(result)
-        })
+            res.send(result);
+        });
 
         // DELETE FOOD ITEM ADDED BY USER
-        app.delete('/foods/:id', async (req, res) => {
-            const id = req.params.id
-            const query = { _id: new ObjectId(id) }
-            const result = await foodCollection.deleteOne(query)
-            res.send(result)
-          })
+        app.delete("/foods/:id", async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await foodCollection.deleteOne(query);
+            res.send(result);
+        });
 
         //   UPDATE FOOD ITEM ADDED BY USER
-        app.put('/foods/:id',  async (req, res) => {
-            const id = req.params.id
-            const foodData = req.body
-            const query = { _id: new ObjectId(id) }
-            const options = { upsert: true }
+        app.put("/foods/:id", async (req, res) => {
+            const id = req.params.id;
+            const foodData = req.body;
+            const query = { _id: new ObjectId(id) };
+            const options = { upsert: true };
             const updateDoc = {
-              $set: {
-                ...foodData,
-              },
-            }
-            const result = await foodCollection.updateOne(query, updateDoc, options)
-            res.send(result)
-          })
+                $set: {
+                    ...foodData,
+                },
+            };
+            const result = await foodCollection.updateOne(
+                query,
+                updateDoc,
+                options
+            );
+            res.send(result);
+        });
 
         // ADD ORDER FROM USER
-        app.post("/orders", async(req, res) => {
+        app.post("/orders", async (req, res) => {
             const order = req.body;
-            const result = await orderCollection.insertOne(order)
-            // const updateOrder = {
-            //     $inc: { order_count: 1}
-            // }
-            // const orderQuery = { _id: new ObjectId(order.id)}
-            // const updateOrderCount = await foodCollection.updateOne( orderQuery, updateOrder)
-            // console.log(updateOrderCount);
+            const result = await orderCollection.insertOne(order);
+            const updateOrder = {
+                $inc: { order_count: 1 },
+            };
+            const orderQuery = { _id: new ObjectId(order.id) };
+            const updateOrderCount = await foodCollection.updateOne(
+                orderQuery,
+                updateOrder
+            );
+            console.log(updateOrderCount);
             res.send(result);
-        })
+        });
 
         // GET ALL ORDER DATA
-        app.get("/orders", async(req, res) => {
+        app.get("/orders", async (req, res) => {
             const result = await orderCollection.find().toArray();
             res.send(result);
-        })
-        
+        });
+
         // FIND ORDER DATA WITH ID
-        app.get("/orders/:id", async(req, res) => {
-            const id = req.params.id
-            const query = { _id: new ObjectId(id) }
+        app.get("/orders/:id", async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
             const result = await orderCollection.find(query).toArray();
             res.send(result);
-        })
+        });
 
         // DELETE ORDERED FOOD
-        app.delete('/order/:id', async (req, res) => {
-            const id = req.params.id
-            const query = { _id: new ObjectId(id) }
-            const result = await orderCollection.deleteOne(query)
-            res.send(result)
-          })
+        app.delete("/order/:id", async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await orderCollection.deleteOne(query);
+            res.send(result);
+        });
+
+        //   ADD PHOTO INTO GALLERY
+        app.post("/gallery", async (req, res) => {
+            const photo = req.body;
+            const result = await photoCollection.insertOne(photo);
+            res.send(result);
+        });
+
+        // GET GALLERY DATA
+        app.get("/gallery", async (req, res) => {
+            const result = await photoCollection.find().toArray();
+            res.send(result);
+        });
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
