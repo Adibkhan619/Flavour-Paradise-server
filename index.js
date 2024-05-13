@@ -57,28 +57,19 @@ async function run() {
 
         // ALL FOOD DATA
         app.get("/foods", async (req, res) => {
-            const search = req.query.search;
-            let query = {
-                food_name: { $regex: search, $options: "i" },
-            };
-
-            const result = await foodCollection.find(query).toArray();
+            const result = await foodCollection.find().toArray();
             res.send(result);
-
-            // const result = await foodCollection.find().toArray();
-            // res.send(result);
         });
 
         // GET FOOD BY SEARCH
-        // app.get("/all-foods", async (req, res) => {
-        //     const search = req.query.search
-        //     let query = {
-        //         food_name: { $regex: search, $options: 'i' },
-        //       }
-
-        //     const result = await foodCollection.find(query).toArray();
-        //     res.send(result);
-        // });
+        app.get("/all-foods", async (req, res) => {
+            const search = req.query.search
+            let query = {
+                food_name: { $regex: search, $options: 'i' },
+              }
+            const result = await foodCollection.find(query).toArray();
+            res.send(result);
+        });
 
         // GET FOOD BY ID
         app.get("/foods/:id", async (req, res) => {
@@ -136,21 +127,21 @@ async function run() {
         app.post("/orders", async (req, res) => {
             const order = req.body;
             const result = await orderCollection.insertOne(order);
-            const updateOrder = {
-                $inc: { order_count: 1 },
-            };
-            const orderQuery = { _id: new ObjectId(order.id) };
-            const updateOrderCount = await foodCollection.updateOne(
-                orderQuery,
-                updateOrder
-            );
-            console.log(updateOrderCount);
+            // const updateOrder = {
+            //     $inc: { order_count: 1 },
+            // };
+            // const query = { _id: new ObjectId(id) };
+            // const updateOrderCount = await foodCollection.updateOne(
+            //     query,
+            //     updateOrder
+            // );
+            // console.log(updateOrderCount);
             res.send(result);
         });
 
         // GET ALL ORDER DATA
         app.get("/orders", async (req, res) => {
-            const result = await orderCollection.find().toArray();
+            const result = await orderCollection.find().sort({ "orderQuantity": -1 }).toArray();
             res.send(result);
         });
 
@@ -158,7 +149,7 @@ async function run() {
         app.get("/orders/:id", async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
-            const result = await orderCollection.find(query).toArray();
+            const result = await orderCollection.findOne(query)
             res.send(result);
         });
 
