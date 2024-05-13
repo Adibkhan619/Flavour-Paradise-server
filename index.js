@@ -38,6 +38,9 @@ async function run() {
         const photoCollection = client
             .db("restaurant-management")
             .collection("gallery");
+        const userCollection = client
+            .db("restaurant-management")
+            .collection("users");
 
         // JWT GENERATE
         app.post("/jwt", async (req, res) => {
@@ -127,15 +130,11 @@ async function run() {
         app.post("/orders", async (req, res) => {
             const order = req.body;
             const result = await orderCollection.insertOne(order);
-            // const updateOrder = {
-            //     $inc: { order_count: 1 },
-            // };
-            // const query = { _id: new ObjectId(id) };
-            // const updateOrderCount = await foodCollection.updateOne(
-            //     query,
-            //     updateOrder
-            // );
-            // console.log(updateOrderCount);
+            const updateOrderCount = await foodCollection.updateOne(
+                {_id: order},
+                {$inc: { order_count: 1 }}
+            );
+            console.log(updateOrderCount);
             res.send(result);
         });
 
@@ -173,6 +172,12 @@ async function run() {
             const result = await photoCollection.find().toArray();
             res.send(result);
         });
+
+        // GET FAKE USER DATA FOR REVIEW
+        app.get("/users", async(req, res) => {
+            const result = await userCollection.find().toArray();
+            res.send(result);
+        })
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
