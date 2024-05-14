@@ -1,19 +1,45 @@
 const express = require("express");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
-const cookieParser = require('cookie-parser')
+const cookieParser = require("cookie-parser");
 require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const port = process.env.PORT || 5000;
 const app = express();
 
 const corsOptions = {
-    origin: ["http://localhost:5173", "http://localhost:5174"],
+    origin: ["http://localhost:5173", "http://localhost:5174", "https://restaurant-management-we-b1988.web.app", "https://restaurant-management-we-b1988.firebaseapp.com"],
     credentials: true,
     optionSuccessStatus: 200,
 };
+
+const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+};
+//localhost:5000 and localhost:5173 are treated as same site.  so sameSite value must be strict in development server.  in production sameSite will be none
+// in development server secure will false .  in production secure will be true
+
 app.use(cors(corsOptions));
 app.use(express.json());
+
+const verifyToken = (req, res, next) => {
+    const token = req.cookies?.token
+    if (!token) return res.status(401).send({ message: 'unauthorized access' })
+    if (token) {
+      jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+        if (err) {
+          console.log(err)
+          return res.status(401).send({ message: 'unauthorized access' })
+        }
+        console.log(decoded)
+  
+        req.user = decoded
+        next()
+      })
+    }
+  }
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.vfffbgl.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -43,20 +69,30 @@ async function run() {
             .collection("users");
 
         // JWT GENERATE
-        app.post("/jwt", async (req, res) => {
+        app.post("/jwt",  async (req, res) => {
             const user = req.body;
             const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
                 expiresIn: "365d",
             });
-            res
-            .cookie('token', token, {
-              httpOnly: true,
-              secure: process.env.NODE_ENV === 'production',
-              sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
-            })
-            .send({ success: true })
-
+            res.cookie("token", token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === "production",
+                sameSite:
+                    process.env.NODE_ENV === "production" ? "none" : "strict",
+            }).send({ success: true });
         });
+
+    // Clear token on logout
+    app.get('/logout', (req, res) => {
+        res
+          .clearCookie('token', {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+            maxAge: 0,
+          })
+          .send({ success: true })
+      })
 
         // ALL FOOD DATA
         app.get("/foods", async (req, res) => {
@@ -66,10 +102,10 @@ async function run() {
 
         // GET FOOD BY SEARCH
         app.get("/all-foods", async (req, res) => {
-            const search = req.query.search
+            const search = req.query.search;
             let query = {
-                food_name: { $regex: search, $options: 'i' },
-              }
+                food_name: { $regex: search, $options: "i" },
+            };
             const result = await foodCollection.find(query).toArray();
             res.send(result);
         });
@@ -92,7 +128,7 @@ async function run() {
         });
 
         // GET FOOD ITEM ADDED BY USER
-        app.get("/food/:email", async (req, res) => {
+        app.get("/food/:email", verifyToken, async (req, res) => {
             const email = req.params.email;
             const query = { email: email };
             const result = await foodCollection.find(query).toArray();
@@ -100,7 +136,7 @@ async function run() {
         });
 
         // DELETE FOOD ITEM ADDED BY USER
-        app.delete("/foods/:id", async (req, res) => {
+        app.delete("/foods/:id",  async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
             const result = await foodCollection.deleteOne(query);
@@ -108,7 +144,7 @@ async function run() {
         });
 
         //   UPDATE FOOD ITEM ADDED BY USER
-        app.put("/foods/:id", async (req, res) => {
+        app.put("/foods/:id",verifyToken, async (req, res) => {
             const id = req.params.id;
             const foodData = req.body;
             const query = { _id: new ObjectId(id) };
@@ -131,8 +167,8 @@ async function run() {
             const order = req.body;
             const result = await orderCollection.insertOne(order);
             const updateOrderCount = await foodCollection.updateOne(
-                {_id: order},
-                {$inc: { order_count: 1 }}
+                { _id: order },
+                { $inc: { order_count: 1 } }
             );
             console.log(updateOrderCount);
             res.send(result);
@@ -140,15 +176,18 @@ async function run() {
 
         // GET ALL ORDER DATA
         app.get("/orders", async (req, res) => {
-            const result = await orderCollection.find().sort({ "orderQuantity": -1 }).toArray();
+            const result = await orderCollection
+                .find()
+                .sort({ orderQuantity: -1 })
+                .toArray();
             res.send(result);
         });
 
         // FIND ORDER DATA WITH ID
-        app.get("/orders/:id", async (req, res) => {
+        app.get("/orders/:id",  async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
-            const result = await orderCollection.findOne(query)
+            const result = await orderCollection.findOne(query);
             res.send(result);
         });
 
@@ -161,7 +200,7 @@ async function run() {
         });
 
         //   ADD PHOTO INTO GALLERY
-        app.post("/gallery", async (req, res) => {
+        app.post("/gallery",  async (req, res) => {
             const photo = req.body;
             const result = await photoCollection.insertOne(photo);
             res.send(result);
@@ -174,18 +213,18 @@ async function run() {
         });
 
         // GET FAKE USER DATA FOR REVIEW
-        app.get("/users", async(req, res) => {
+        app.get("/users", async (req, res) => {
             const result = await userCollection.find().toArray();
             res.send(result);
-        })
+        });
 
         // Send a ping to confirm a successful connection
-        await client.db("admin").command({ ping: 1 });
+        // await client.db("admin").command({ ping: 1 });
         console.log(
             "Pinged your deployment. You successfully connected to MongoDB!"
         );
     } finally {
-        // Ensures that the client will close when you finish/error
+        // Ensures that the client will close when you finish/errors
     }
 }
 run().catch(console.dir);
